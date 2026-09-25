@@ -50,8 +50,17 @@ assert(
 // Breakout rules
 assert(
   cssContent.includes("transform: translateX(-50%)") &&
+  cssContent.includes("min-width: 100%") &&
   cssContent.includes("max-width: var(--dynamic-wide-content-max);"),
-  "styles.css must center wide blocks with transform and CSS variable max-width"
+  "styles.css must center wide blocks with transform, min-width 100%, and CSS variable max-width"
+);
+
+// Table layout rules
+assert(
+  cssContent.includes("table.dynamic-wide-content-table") &&
+  cssContent.includes("width: max-content") &&
+  cssContent.includes("min-width: 100%"),
+  "styles.css must ensure tables expand to max-content with min-width 100%"
 );
 
 assert(
@@ -157,8 +166,8 @@ class MockElement {
     const parts = selector.split(",").map(s => s.trim());
     for (const part of parts) {
       if (part.startsWith(".")) {
-        const cls = part.slice(1);
-        if (this.classList.contains(cls)) return true;
+        const classes = part.split(".").filter(Boolean);
+        if (classes.every(c => this.classList.contains(c))) return true;
       } else if (part.startsWith("[data-widget-type=")) {
         const type = part.match(/data-widget-type=['"]?([^'"\]]+)['"]?/)?.[1];
         if (this.getAttribute("data-widget-type") === type) return true;
@@ -202,6 +211,10 @@ const TABLE_INNER_CLASS = "dynamic-wide-content-table-inner";
 const TABLE_ELEMENT_CLASS = "dynamic-wide-content-table";
 const DIAGRAM_BLOCK_CLASS = "dynamic-wide-content-diagram-block";
 const DIAGRAM_INNER_CLASS = "dynamic-wide-content-diagram-inner";
+const CODE_BLOCK_CLASS = "dynamic-wide-content-code-block";
+const CODE_INNER_CLASS = "dynamic-wide-content-code-inner";
+const IMAGE_BLOCK_CLASS = "dynamic-wide-content-image-block";
+const IMAGE_INNER_CLASS = "dynamic-wide-content-image-inner";
 const TASKNOTES_BLOCK_CLASS = "dynamic-wide-content-tasknotes-block";
 const TASKNOTES_INNER_CLASS = "dynamic-wide-content-tasknotes-inner";
 const MEDIA_CLASS = "dynamic-wide-content-media";
@@ -215,6 +228,8 @@ const OVERFLOW_CONTAINER_CLASSES = [
 ];
 
 const TABLE_CONTAINER_CLASSES = ["el-table", "table-wrapper", "cm-table-widget"];
+const CODE_CONTAINER_CLASSES = ["el-pre"];
+const IMAGE_CONTAINER_CLASSES = ["el-embed-image", "image-embed"];
 const TASKNOTES_CONTAINER_CLASSES = [
   "tasknotes-relationships-widget",
   "task-card-note-widget",
@@ -252,6 +267,7 @@ const TASKNOTES_SELECTOR = [
 
 const DIAGRAM_CONTAINER_SELECTOR = DIAGRAM_CONTAINER_CLASSES.map(c => `.${c}`).join(", ");
 const DIAGRAM_CONTENT_SELECTOR = DIAGRAM_CONTENT_CLASSES.map(c => `.${c}`).join(", ");
+const IMAGE_CONTAINER_SELECTOR = ".el-embed-image, .internal-embed.image-embed, .image-embed";
 
 function containsClass(el, classNames) {
   return classNames.some(cls => el.classList.contains(cls));
@@ -267,7 +283,29 @@ function closestByClass(el, classNames) {
 }
 
 function getWideBlock(el, containerClasses) {
-  return closestByClass(el, [...containerClasses, "cm-embed-block"]) ?? el;
+  let current = el;
+  let outermost = null;
+  const allTargetClasses = [...containerClasses, "cm-embed-block"];
+
+  while (current) {
+    if (containsClass(current, allTargetClasses)) {
+      outermost = current;
+    }
+    if (
+      containsClass(current, [
+        "markdown-rendered",
+        "markdown-source-view",
+        "cm-content",
+        "markdown-preview-sizer",
+        "cm-sizer"
+      ])
+    ) {
+      break;
+    }
+    current = current.parentElement;
+  }
+
+  return outermost ?? el;
 }
 
 function isMarkdownContent(el) {
@@ -280,6 +318,10 @@ function isMarkdownContent(el) {
     "cm-content",
     "cm-sizer"
   ]) !== null;
+}
+
+function isDiagramContent(el) {
+  return closestByClass(el, [...DIAGRAM_CONTAINER_CLASSES, ...DIAGRAM_CONTENT_CLASSES]) !== null;
 }
 
 function markOverflowAncestors(el) {
@@ -325,6 +367,42 @@ function markTables(root) {
     if (!isMarkdownContent(t)) continue;
     t.classList.add(TABLE_ELEMENT_CLASS);
     markWideBlock(getWideBlock(t, TABLE_CONTAINER_CLASSES), TABLE_BLOCK_CLASS);
+    markWideInner(t, TABLE_INNER_CLASS);
+  }
+}
+
+function markCodeBlocks(root) {
+  for (const cls of CODE_CONTAINER_CLASSES) {
+    const matches = root.querySelectorAll(`.${cls}`);
+    if (root.classList.contains(cls)) matches.push(root);
+    for (const el of matches) {
+      markWideBlock(el, CODE_BLOCK_CLASS);
+      markWideInner(el, CODE_INNER_CLASS);
+    }
+  }
+
+  const pres = (root.matches("pre") ? [root] : []).concat(root.querySelectorAll("pre"));
+  for (const p of pres) {
+    if (!isMarkdownContent(p)) continue;
+    markWideBlock(getWideBlock(p, CODE_CONTAINER_CLASSES), CODE_BLOCK_CLASS);
+    markWideInner(p, CODE_INNER_CLASS);
+  }
+}
+
+function markImages(root) {
+  const containers = (root.matches(IMAGE_CONTAINER_SELECTOR) ? [root] : []).concat(root.querySelectorAll(IMAGE_CONTAINER_SELECTOR));
+  for (const c of containers) {
+    if (!isMarkdownContent(c)) continue;
+    markWideBlock(getWideBlock(c, IMAGE_CONTAINER_CLASSES), "dynamic-wide-content-image-block");
+    markWideInner(c, "dynamic-wide-content-image-inner");
+    markMediaChildren(c);
+  }
+
+  const imgs = (root.matches("img") ? [root] : []).concat(root.querySelectorAll("img"));
+  for (const img of imgs) {
+    if (!isMarkdownContent(img) || isDiagramContent(img)) continue;
+    markWideBlock(getWideBlock(img, IMAGE_CONTAINER_CLASSES), "dynamic-wide-content-image-block");
+    markMedia(img);
   }
 }
 
@@ -465,5 +543,59 @@ assert(
   "PlantUML image must receive dynamic-wide-content-media"
 );
 console.log("    ✔ PlantUML scenario verified successfully.");
+
+// Test Case 5: Image Embed vs Plain Transclusion Embed Isolation
+console.log("  → Scenario 5: Image Embed vs Plain Note Transclusion Embed Isolation");
+const imgEmbedBlock = new MockElement("div", "cm-embed-block");
+const imgEmbedSpan = new MockElement("span", "internal-embed image-embed media-embed");
+const renderedImg = new MockElement("img", "image-content");
+imgEmbedBlock.appendChild(imgEmbedSpan);
+imgEmbedSpan.appendChild(renderedImg);
+lpContent.appendChild(imgEmbedBlock);
+
+const noteEmbedBlock = new MockElement("div", "cm-embed-block");
+const noteEmbedSpan = new MockElement("span", "internal-embed is-loaded");
+const noteIconSvg = new MockElement("svg", "svg-icon");
+noteEmbedBlock.appendChild(noteEmbedSpan);
+noteEmbedSpan.appendChild(noteIconSvg);
+lpContent.appendChild(noteEmbedBlock);
+
+markImages(livePreviewView);
+
+assert(
+  imgEmbedBlock.classList.contains("dynamic-wide-content-image-block"),
+  "Image embed block must receive dynamic-wide-content-image-block"
+);
+assert(
+  !noteEmbedBlock.classList.contains("dynamic-wide-content-image-block"),
+  "Plain note transclusion embed must NOT receive dynamic-wide-content-image-block"
+);
+assert(
+  !noteIconSvg.classList.contains(MEDIA_CLASS),
+  "Non-media transclusion UI icon SVG must NOT receive dynamic-wide-content-media"
+);
+console.log("    ✔ Image Embed vs Plain Transclusion isolation verified successfully.");
+
+// Test Case 6: Code Block Marking in Reading View and Live Preview
+console.log("  → Scenario 6: Code Block Marking");
+const readingView = new MockElement("div", "markdown-rendered is-readable-line-width");
+const preContainer = new MockElement("div", "el-pre");
+const preElement = new MockElement("pre", "language-typescript");
+const codeElement = new MockElement("code", "");
+readingView.appendChild(preContainer);
+preContainer.appendChild(preElement);
+preElement.appendChild(codeElement);
+
+markCodeBlocks(readingView);
+
+assert(
+  preContainer.classList.contains("dynamic-wide-content-code-block"),
+  "Code container .el-pre must receive dynamic-wide-content-code-block"
+);
+assert(
+  preElement.classList.contains("dynamic-wide-content-code-inner"),
+  "Pre element must receive dynamic-wide-content-code-inner"
+);
+console.log("    ✔ Code Block marking verified successfully.");
 
 console.log("\n🎉 ALL TESTS PASSED SUCCESSFULLY! Production ready.");
