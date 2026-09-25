@@ -99,7 +99,7 @@ const OVERFLOW_CONTAINER_CLASSES = [
 
 const TABLE_CONTAINER_CLASSES = ["el-table", "table-wrapper", "cm-table-widget"];
 const CODE_CONTAINER_CLASSES = ["el-pre"];
-const IMAGE_CONTAINER_CLASSES = ["el-embed-image", "internal-embed", "image-embed"];
+const IMAGE_CONTAINER_CLASSES = ["el-embed-image", "image-embed"];
 const TASKNOTES_CONTAINER_CLASSES = [
   "tasknotes-relationships-widget",
   "task-card-note-widget",
@@ -500,16 +500,33 @@ function markOverflowContainers(root: HTMLElement) {
 }
 
 function markTables(root: HTMLElement) {
+  forEachClassMatch(root, TABLE_CONTAINER_CLASSES, (element) => {
+    if (!isMarkdownContent(element)) return;
+
+    const block = getWideBlock(element, TABLE_CONTAINER_CLASSES);
+    markWideBlock(block, TABLE_BLOCK_CLASS);
+    markWideInner(element, TABLE_INNER_CLASS);
+  });
+
   forEachMatch(root, "table", (table) => {
     if (!isMarkdownContent(table)) return;
 
     table.classList.add(TABLE_ELEMENT_CLASS);
     const block = getWideBlock(table, TABLE_CONTAINER_CLASSES);
     markWideBlock(block, TABLE_BLOCK_CLASS);
+    markWideInner(table, TABLE_INNER_CLASS);
   });
 }
 
 function markCodeBlocks(root: HTMLElement) {
+  forEachClassMatch(root, CODE_CONTAINER_CLASSES, (element) => {
+    if (!isMarkdownContent(element)) return;
+
+    const block = getWideBlock(element, CODE_CONTAINER_CLASSES);
+    markWideBlock(block, CODE_BLOCK_CLASS);
+    markWideInner(element, CODE_INNER_CLASS);
+  });
+
   forEachMatch(root, "pre", (pre) => {
     if (!isMarkdownContent(pre)) return;
 

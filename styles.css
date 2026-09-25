@@ -25,6 +25,7 @@ body.dynamic-wide-content.dynamic-wide-content-live-preview.dynamic-wide-content
   position: relative;
   left: 50%;
   width: max-content;
+  min-width: 100%;
   max-width: var(--dynamic-wide-content-max);
   margin-top: var(--tn-relationships-widget-margin-top, 0.75em);
   margin-bottom: 0.75em;
@@ -45,6 +46,12 @@ body.dynamic-wide-content.dynamic-wide-content-images .markdown-source-view.mod-
 body.dynamic-wide-content.dynamic-wide-content-tasknotes .markdown-source-view.mod-cm6 .dynamic-wide-content-tasknotes-inner {
   max-width: 100%;
   overflow-x: auto;
+}
+
+body.dynamic-wide-content.dynamic-wide-content-tables .markdown-rendered table.dynamic-wide-content-table,
+body.dynamic-wide-content.dynamic-wide-content-tables .markdown-source-view.mod-cm6 table.dynamic-wide-content-table {
+  width: max-content;
+  min-width: 100%;
 }
 
 body.dynamic-wide-content.dynamic-wide-content-diagrams .dynamic-wide-content-diagram-block,
@@ -87,7 +94,7 @@ body.dynamic-wide-content.dynamic-wide-content-diagrams .block-language-plantuml
 body.dynamic-wide-content.dynamic-wide-content-diagrams .plantuml-preview-view img,
 body.dynamic-wide-content.dynamic-wide-content-images .dynamic-wide-content-image-block img.dynamic-wide-content-media,
 body.dynamic-wide-content.dynamic-wide-content-images .dynamic-wide-content-image-block img,
-body.dynamic-wide-content.dynamic-wide-content-images .dynamic-wide-content-image-block .dynamic-wide-content-media {
+body.dynamic-wide-content.dynamic-wide-content-images .dynamic-wide-content-image-block .dynamic-wide-content-media:not(svg) {
   display: block;
   margin-left: 0;
   margin-right: 0;
@@ -103,6 +110,12 @@ body.dynamic-wide-content.dynamic-wide-content-diagrams .plantuml-preview-view s
   display: block;
   margin-left: 0;
   margin-right: 0;
-  max-width: none;
+  max-width: 100%;
   height: auto;
+}
+
+body.dynamic-wide-content.dynamic-wide-content-diagrams .dynamic-wide-content-diagram-block svg[style*="width"],
+body.dynamic-wide-content.dynamic-wide-content-diagrams .block-language-plantuml svg[style*="width"],
+body.dynamic-wide-content.dynamic-wide-content-diagrams .plantuml-preview-view svg[style*="width"] {
+  max-width: none;
 }
